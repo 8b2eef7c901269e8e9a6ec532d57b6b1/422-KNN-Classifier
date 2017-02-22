@@ -1,7 +1,7 @@
 # CS422 - Data Analytics
 # Jared McLean & Jared Schreiber
 # 2/22/2017
-"K-Nearest-Neighbors Classifier with test data and misc. other algorithms for comparison"
+"K-Nearest-Neighbors Classifier with test data"
 
 import csv
 import math
