@@ -65,25 +65,25 @@ def pearsons(vector1, vector2):
     sy = 0
     n = len(vector1)
 
-    for i in n:
+    for i in range(0, n):
         xbar += vector1[i]
         ybar += vector2[i]
 
     xbar /= n
     ybar /= n
 
-    for i in n:
+    for i in range(0, n):
         sxy += (vector1[i] - xbar) * (vector2[i] - ybar)
 
     sxy /= n - 1
 
-    for i in n:
+    for i in range(0, n):
         sx += pow(vector1[i] - xbar, 2)
 
     sx /= n - 1
     sx = math.sqrt(sx)
 
-    for i in n:
+    for i in range(0, n):
         sy += pow(vector2[i] - ybar, 2)
 
     sy /= n - 1
