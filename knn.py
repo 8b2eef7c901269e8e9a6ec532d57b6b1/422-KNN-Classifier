@@ -8,7 +8,6 @@ def main():
     "main function"
     trainingset = loadcsv("car_data_trainset.csv")
     testset = loadcsv("car_data_testset.csv")
-    print(testset, trainingset)
     return
 #load a CSV file and return list of vectors
 def loadcsv(fname):
@@ -45,9 +44,45 @@ def edist(vector1):
 def cosim(vector1, vector2):
     "Cosine Similarity Function"
     return dprod(vector1, vector2) / edist(vector1) * edist(vector2)
-#Covariance Function
-def cov(vector1, vector2):
-    "Covariance Function"
+#Pearsons Correlation
+def pearsons(vector1, vector2):
+    "Pearsons Correlation"
+    xbar = 0
+    ybar = 0
+    sxy = 0
+    sx = 0
+    sy = 0
+    n = len(vector1)
+
+    for i in n:
+        xbar += vector1[i]
+        ybar += vector2[i]
+
+    xbar /= n
+    ybar /= n
+
+    for i in n:
+        sxy += (vector1[i] - xbar) * (vector2[i] - ybar)
+
+    sxy /= n - 1
+
+    for i in n:
+        sx += pow(vector1[i] - xbar, 2)
+
+    sx /= n - 1
+    sx = math.sqrt(sx)
+
+    for i in n:
+        sy += pow(vector2[i] - ybar, 2)
+
+    sy /= n - 1
+    sy = math.sqrt(sy)
+
+    return sxy / (sx * sy)
+#K nearest neighbors
+def knn(trainset, testset, k):
+    "K Nearest Neighbors"
+    
     return
 #main block
 main()
