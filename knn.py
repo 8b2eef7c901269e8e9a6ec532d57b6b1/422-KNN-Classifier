@@ -1,14 +1,20 @@
+# CS422 - Data Analytics
+# Jared McLean & Jared Schreiber
+# 2/22/2017
 "K-Nearest-Neighbors Classifier with test data and misc. other algorithms for comparison"
+
 import csv
 import math
-import statistics
+
 #functions
+
 #main function
 def main():
     "main function"
     trainingset = loadcsv("car_data_trainset.csv")
     testset = loadcsv("car_data_testset.csv")
     return
+
 #load a CSV file and return list of vectors
 def loadcsv(fname):
     "loads a csv file"
@@ -18,6 +24,7 @@ def loadcsv(fname):
         for row in reader:
             rlist.insert(0, row)
     return rlist
+
 #Euclidean Distance Function 2 vectors
 def edist2(vector1, vector2):
     "Euclidean Distance Function for 2 Vectors"
@@ -27,12 +34,14 @@ def edist2(vector1, vector2):
     for i in range(length):
         dist += pow((vector1[i] - vector2[i]), length)
     return math.sqrt(dist)
+
 #Dot Product
 def dprod(vector1, vector2):
     "Dot Product"
     if len(vector1) != len(vector2):
         return 0
     return sum(i[0] * i[1] for i in zip(vector1, vector2))
+
 #Euclidean Distance Function 1 vector
 def edist(vector1):
     "Euclidean Distance Function for 1 Vector"
@@ -40,10 +49,12 @@ def edist(vector1):
     for item in vector1:
         dist += pow(item, 2)
     return math.sqrt(dist)
+
 #Cosine Similarity Function
 def cosim(vector1, vector2):
     "Cosine Similarity Function"
     return dprod(vector1, vector2) / edist(vector1) * edist(vector2)
+
 #Pearsons Correlation
 def pearsons(vector1, vector2):
     "Pearsons Correlation"
@@ -79,10 +90,12 @@ def pearsons(vector1, vector2):
     sy = math.sqrt(sy)
 
     return sxy / (sx * sy)
+
 #K nearest neighbors
 def knn(trainset, testset, k):
     "K Nearest Neighbors"
-    
+
     return
+
 #main block
 main()
