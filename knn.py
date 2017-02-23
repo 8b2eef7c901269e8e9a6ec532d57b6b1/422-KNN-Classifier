@@ -5,6 +5,7 @@
 
 import csv
 import math
+import operator
 
 #functions
 
@@ -58,7 +59,7 @@ def edist2(vector1, vector2):
     dist = 0
     length = len(vector1)
     for i in range(length):
-        dist += pow((vector1[i] - vector2[i]), length)
+        dist += pow((vector1[i] - vector2[i]), 2)
     return math.sqrt(dist)
 
 #Dot Product
@@ -117,11 +118,23 @@ def pearsons(vector1, vector2):
 
     return sxy / (sx * sy)
 
-#K nearest neighbors
-def knn(trainset, testset, k):
-    "K Nearest Neighbors"
-    
-    return
+#get neighbors. simfunc = which similarity function
+def getneighbors(matrix1, vector2, k, simfunc):
+    "Get Neighbors"
+    result1 = []
+    result2 = []
+    for i in range(0, len(matrix1)):
+        result1.append((matrix1[i], simfunc(vector2, matrix1[i])))
+    #at this point result = list of neighbors, not sorted
+    result1.sort(key=operator.itemgetter(1))
+    for index in range(k):
+        result2.append(result1[index][0])
+    return result2
 
 #main block
-main()
+#main()
+#some testing stuff ::
+#trainSet = [[2, 2, 2], [4, 4, 4]]
+#testInstance = [5, 5, 5]
+#neighbors = getneighbors(trainSet, testInstance, 1, edist2)
+#print(neighbors)
