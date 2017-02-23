@@ -11,19 +11,45 @@ import math
 #main function
 def main():
     "main function"
-    trainingset = loadcsv("car_data_trainset.csv")
-    testset = loadcsv("car_data_testset.csv")
+    trainingset = loadcsv("bupa_data_trainset.csv")
+    testset = loadcsv("bupa_data_testset.csv")
+    normalizedTrainingSet = normalize(trainingset)
+    #print(normalizedTrainingSet)
+
     return
+
+def normalize(set):
+    numAttributes = len(set[0])
+    numRows = len(set)
+    setRange = []
+    norm = [[] for _ in range(numRows)]
+    for i in range(numAttributes):
+        if testNum(set[0][i]):
+            setRange.append((max(set, key = lambda row: row[i])[i], min(set, key = lambda row: row[i])[i]))
+            for j in range(numRows):
+                norm[j].append((set[j][i] - setRange[i][1]) / (setRange[i][0] - setRange[i][1]))
+    return norm
+
 
 #load a CSV file and return list of vectors
 def loadcsv(fname):
     "loads a csv file"
     rlist = []
+    test = 0
     with open(fname, 'r') as fvar:
         reader = csv.reader(fvar)
         for row in reader:
-            rlist.insert(0, row)
+            row[:] = [float(item) for item in row if testNum(item)]
+            rlist.append(row)
     return rlist
+
+def testNum(f):
+    try:
+        float(f)
+        return True
+    except ValueError:
+        return False
+
 
 #Euclidean Distance Function 2 vectors
 def edist2(vector1, vector2):
@@ -94,7 +120,7 @@ def pearsons(vector1, vector2):
 #K nearest neighbors
 def knn(trainset, testset, k):
     "K Nearest Neighbors"
-
+    
     return
 
 #main block
