@@ -127,7 +127,7 @@ def getneighbors(matrix1, vector2, k, simfunc):
         result1.append((matrix1[i], simfunc(vector2, matrix1[i])))
     #at this point result = list of neighbors, not sorted
     result1.sort(key=operator.itemgetter(1))
-    for index in range(k):
+    for index in range(0, k):
         result2.append(result1[index][0])
     return result2
 
