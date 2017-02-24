@@ -28,10 +28,13 @@ def main():
     #leave testing data unzipped since order will remain the same, and simplifies element iteration
     normalizedBUPATestSet = (normalize(rawBUPATestSet[0]), rawBUPATestSet[1])
 
+    #do any functions need non-normalized data?
+    distanceFuncts = [edist2, cosim, pearsons]
     #test
-    for item in knn(edist2, normalizedBUPATrainingSet, normalizedBUPATestSet[0][0], 5):
-        print(item)
-
+    for funct in distanceFuncts:
+        for item in knn(funct, normalizedBUPATrainingSet, normalizedBUPATestSet[0][0], 5):
+            print(item[1])
+        print()
     return
 
 def separateClass(set, classIndex):
