@@ -118,13 +118,13 @@ def pearsons(vector1, vector2):
 
     return sxy / (sx * sy)
 
-#get neighbors. simfunc = which similarity function
-def getneighbors(matrix1, vector2, k, simfunc):
+#get neighbors
+def getneighbors_e(matrix1, vector2, k):
     "Get Neighbors"
     result1 = []
     result2 = []
     for i in range(0, len(matrix1)):
-        result1.append((matrix1[i], simfunc(vector2, matrix1[i])))
+        result1.append((matrix1[i], edist2(vector2, matrix1[i])))
     #at this point result = list of neighbors, not sorted
     result1.sort(key=operator.itemgetter(1))
     for index in range(0, k):
@@ -136,5 +136,5 @@ def getneighbors(matrix1, vector2, k, simfunc):
 #some testing stuff ::
 #trainSet = [[2, 2, 2], [4, 4, 4]]
 #testInstance = [5, 5, 5]
-#neighbors = getneighbors(trainSet, testInstance, 1, edist2)
+#neighbors = getneighbors_e(trainSet, testInstance, 1, edist2)
 #print(neighbors)
