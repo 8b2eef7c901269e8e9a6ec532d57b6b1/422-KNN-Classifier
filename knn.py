@@ -12,12 +12,33 @@ import operator
 #main function
 def main():
     "main function"
-    trainingset = loadcsv("bupa_data_trainset.csv")
-    testset = loadcsv("bupa_data_testset.csv")
-    normalizedTrainingSet = normalize(trainingset)
-    #print(normalizedTrainingSet)
+    #index of classification element for BUPA data set
+    BUPA_CLASS_INDEX = 6
+    #load BUPA data set
+    rawBUPATrainingSet = loadcsv("bupa_data_trainset.csv")
+    rawBUPATestSet = loadcsv("bupa_data_testset.csv")
+    #separate out classification data
+    rawBUPATrainingSet = separateClass(rawBUPATrainingSet, BUPA_CLASS_INDEX)
+    rawBUPATestSet = separateClass(rawBUPATestSet, BUPA_CLASS_INDEX)
+    #get normalized bupa training set and zip with classification data
+    #zipped with classification data so classification order maintained when sorted
+    normalizedBUPATrainingSet = list(zip(normalize(rawBUPATrainingSet[0]), rawBUPATrainingSet[1]))
+    rawBUPATrainingSet = list(zip(rawBUPATrainingSet[0], rawBUPATrainingSet[1]))
+    #get normalized bupa test set
+    #leave testing data unzipped since order will remain the same, and simplifies element iteration
+    normalizedBUPATestSet = (normalize(rawBUPATestSet[0]), rawBUPATestSet[1])
+
+    #test
+    for item in knn(edist2, normalizedBUPATrainingSet, normalizedBUPATestSet[0][0], 5):
+        print(item)
 
     return
+
+def separateClass(set, classIndex):
+    classifier = []
+    for item in set:
+        classifier.append(item.pop(classIndex))
+    return (set, classifier)
 
 def normalize(set):
     numAttributes = len(set[0])
@@ -118,23 +139,25 @@ def pearsons(vector1, vector2):
 
     return sxy / (sx * sy)
 
+def testfunc(x,y):
+    return x+y
+def testfuncparam(t, x, y):
+    return testfunc(x,y)
+
 #get neighbors
-def getneighbors_e(matrix1, vector2, k):
+def knn(distanceFunction, dataSet, dataPoint, k):
     "Get Neighbors"
-    result1 = []
-    result2 = []
-    for i in range(0, len(matrix1)):
-        result1.append((matrix1[i], edist2(vector2, matrix1[i])))
+    dist = []
+    for i in range(0, len(dataSet)):
+        dist.append((dataSet[i], distanceFunction(dataPoint, dataSet[i][0])))
     #at this point result = list of neighbors, not sorted
-    result1.sort(key=operator.itemgetter(1))
-    for index in range(0, k):
-        result2.append(result1[index][0])
-    return result2
+    dist.sort(key = operator.itemgetter(1))
+    return [element[0] for element in dist[:k]]
 
 #main block
-#main()
+main()
 #some testing stuff ::
-#trainSet = [[2, 2, 2], [4, 4, 4]]
-#testInstance = [5, 5, 5]
-#neighbors = getneighbors_e(trainSet, testInstance, 1, edist2)
+trainSet = [([2, 2, 3], 0), ([3, 4, 4], 1)]
+testInstance = [5, 5, 5]
+neighbors = knn(edist2, trainSet, testInstance, 2)
 #print(neighbors)
