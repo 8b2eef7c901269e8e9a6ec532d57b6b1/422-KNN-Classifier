@@ -188,8 +188,3 @@ def knn(distanceFunction, dataSet, dataPoint, k):
 
 #main block
 main()
-#some testing stuff ::
-trainSet = [([2, 2, 3], 0), ([3, 4, 4], 1)]
-testInstance = [5, 5, 5]
-neighbors = knn('e', trainSet, testInstance, 2)
-#print(neighbors)
