@@ -14,6 +14,7 @@ def main():
     "main function"
     #index of classification element for BUPA data set
     BUPA_CLASS_INDEX = 6
+    MAX_K = 20
     #load BUPA data set
     rawBUPATrainingSet = loadcsv("bupa_data_trainset.csv")
     rawBUPATestSet = loadcsv("bupa_data_testset.csv")
@@ -29,13 +30,43 @@ def main():
     normalizedBUPATestSet = (normalize(rawBUPATestSet[0]), rawBUPATestSet[1])
 
     #do any functions need non-normalized data?
-    distanceFuncts = [edist2, cosim, pearsons]
-    #test
-    for funct in distanceFuncts:
-        for item in knn(funct, normalizedBUPATrainingSet, normalizedBUPATestSet[0][0], 5):
-            print(item[1])
+    sets = [(('e',  normalizedBUPATestSet, normalizedBUPATrainingSet), "Euclidian Distance"),
+            (('c',  normalizedBUPATestSet, normalizedBUPATrainingSet), "Cosine Similarity"),
+            (('p',  rawBUPATestSet, rawBUPATrainingSet), "Pearson Correlation")]
+
+    maxAccuracy = (0, 0, 0)
+    for k in range(1, MAX_K):
+        print("k: " + str(k))
+        for set in sets:
+            accuracy = 0
+            classification = []
+            print("Function: " + set[1])
+            classification = classify(k, *set[0])
+            accuracy = getAccuracy(classification, set[0][1][1])
+            print("Accuracy: " + str(accuracy))
+            if accuracy > maxAccuracy[0]:
+                maxAccuracy = (accuracy, k, set[1])
         print()
+    print("Maximum Accuracy: " + str(maxAccuracy))
     return
+
+def getAccuracy(computedClassification, knownClassification):
+    accurate = 0
+    for classifier in zip(computedClassification, knownClassification):
+                #print(classifier[0])
+                if classifier[0] == classifier[1]:
+                    accurate += 1
+    return accurate / len(knownClassification) * 100
+
+def classify(k, distanceFunction, testSet, trainingSet):
+    classification = []
+    for point in testSet[0]:
+                average = 0
+                for classifier in knn(distanceFunction, trainingSet, point, k):
+                    average += classifier
+                average /= k
+                classification.append(int(round(average)))
+    return classification
 
 def separateClass(set, classIndex):
     classifier = []
@@ -104,63 +135,61 @@ def edist(vector1):
 #Cosine Similarity Function
 def cosim(vector1, vector2):
     "Cosine Similarity Function"
-    return dprod(vector1, vector2) / edist(vector1) * edist(vector2)
+    return dprod(vector1, vector2) / (edist(vector1) * edist(vector2))
 
 #Pearsons Correlation
-def pearsons(vector1, vector2):
-    "Pearsons Correlation"
+def pearson(vector1, vector2):
+    "Pearson Correlation"
     xbar = 0
     ybar = 0
     sxy = 0
     sx = 0
     sy = 0
     n = len(vector1)
-
     for i in range(0, n):
         xbar += vector1[i]
         ybar += vector2[i]
-
     xbar /= n
     ybar /= n
-
     for i in range(0, n):
         sxy += (vector1[i] - xbar) * (vector2[i] - ybar)
-
     sxy /= n - 1
-
     for i in range(0, n):
         sx += pow(vector1[i] - xbar, 2)
-
     sx /= n - 1
     sx = math.sqrt(sx)
-
     for i in range(0, n):
         sy += pow(vector2[i] - ybar, 2)
-
     sy /= n - 1
     sy = math.sqrt(sy)
-
     return sxy / (sx * sy)
-
-def testfunc(x,y):
-    return x+y
-def testfuncparam(t, x, y):
-    return testfunc(x,y)
 
 #get neighbors
 def knn(distanceFunction, dataSet, dataPoint, k):
     "Get Neighbors"
     dist = []
-    for i in range(0, len(dataSet)):
-        dist.append((dataSet[i], distanceFunction(dataPoint, dataSet[i][0])))
-    #at this point result = list of neighbors, not sorted
-    dist.sort(key = operator.itemgetter(1))
-    return [element[0] for element in dist[:k]]
+    if distanceFunction == 'e':
+        for i in range(0, len(dataSet)):
+            dist.append((dataSet[i], edist2(dataPoint, dataSet[i][0])))
+        dist.sort(key = operator.itemgetter(1))
+        return [element[0][1] for element in dist[:k]]
+    elif distanceFunction == 'c':
+        for i in range(0, len(dataSet)):
+            dist.append((dataSet[i], cosim(dataPoint, dataSet[i][0])))
+        dist.sort(key = operator.itemgetter(1))
+        return [element[0][1] for element in dist[-k:]]
+    elif distanceFunction == 'p':
+        for i in range(0, len(dataSet)):
+            dist.append((dataSet[i], abs(pearson(dataPoint, dataSet[i][0]))))
+        dist.sort(key = operator.itemgetter(1))
+        return [element[0][1] for element in dist[-k:]]
+    else:
+        raise ValueError("Invalid distance function type")
 
 #main block
 main()
 #some testing stuff ::
 trainSet = [([2, 2, 3], 0), ([3, 4, 4], 1)]
 testInstance = [5, 5, 5]
-neighbors = knn(edist2, trainSet, testInstance, 2)
+neighbors = knn('e', trainSet, testInstance, 2)
 #print(neighbors)
