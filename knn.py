@@ -7,35 +7,78 @@ import csv
 import math
 import operator
 
+#offset values by a small amount to avoid division by 0
+EPSI = 1/2 * pow(10, -6)
+
 #functions
 
 #main function
 def main():
     "main function"
-    #index of classification element for BUPA data set
-    BUPA_CLASS_INDEX = 6
-    MAX_K = 20
-    #load BUPA data set
-    rawBUPATrainingSet = loadcsv("bupa_data_trainset.csv")
-    rawBUPATestSet = loadcsv("bupa_data_testset.csv")
-    #separate out classification data
-    rawBUPATrainingSet = separateClass(rawBUPATrainingSet, BUPA_CLASS_INDEX)
-    rawBUPATestSet = separateClass(rawBUPATestSet, BUPA_CLASS_INDEX)
-    #get normalized bupa training set and zip with classification data
-    #zipped with classification data so classification order maintained when sorted
-    normalizedBUPATrainingSet = list(zip(normalize(rawBUPATrainingSet[0]), rawBUPATrainingSet[1]))
-    rawBUPATrainingSet = list(zip(rawBUPATrainingSet[0], rawBUPATrainingSet[1]))
-    #get normalized bupa test set
-    #leave testing data unzipped since order will remain the same, and simplifies element iteration
-    normalizedBUPATestSet = (normalize(rawBUPATestSet[0]), rawBUPATestSet[1])
+    BUPA_NUM_ATTRIBUTES = 7
+    CAR_NUM_ATTRIBUTES = 7
 
-    #do any functions need non-normalized data?
-    sets = [(('e',  normalizedBUPATestSet, normalizedBUPATrainingSet), "Euclidian Distance"),
-            (('c',  normalizedBUPATestSet, normalizedBUPATrainingSet), "Cosine Similarity"),
-            (('p',  rawBUPATestSet, rawBUPATrainingSet), "Pearson Correlation")]
+    BUPA_CLASS_INDEX = 6
+    CAR_CLASS_INDEX = 6
+
+    MIN_K = 30
+    MAX_K = 31
+    CAR_VALUES = [
+        {'vhigh' : 4.0,
+         'high' : 3.0,
+         'med' : 2.0,
+         'low' : 1.0},
+        {'vhigh' : 4.0,
+         'high' : 3.0,
+         'med' : 2.0,
+         'low' : 1.0},
+        {'5more' : 5.0},
+        {'more' : 6.0},
+        {'small' : 1.0,
+         'med' : 2.0,
+         'big' : 3.0},
+        {'low' : 1.0,
+         'med' : 2.0,
+         'high' : 3.0},
+        {'unacc' : 1.0,
+         'acc' : 2.0,
+         'good' : 3.0,
+         'vgood' : 4.0}
+        ]
+
+    #load data sets
+    BUPATrainingSet = loadcsv("bupa_data_trainset.csv")
+    BUPATestSet = loadcsv("bupa_data_testset.csv")
+    carTrainingSet = loadcsv("car_data_trainset.csv")
+    carTestSet = loadcsv("car_data_testset.csv")
+    #convert car data to purely numerical values
+    carTrainingSet = convertData(carTrainingSet, CAR_VALUES)
+    carTestSet = convertData(carTestSet, CAR_VALUES)
+    
+    runClassification(BUPATrainingSet, BUPATestSet, BUPA_CLASS_INDEX, MIN_K, MAX_K)
+    print("\n")
+    runClassification(carTrainingSet, carTestSet, CAR_CLASS_INDEX, MIN_K, MAX_K)
+
+    
+
+def runClassification(trainingSet, testSet, classIndex, minK, maxK):
+    #separate out classification data
+    rawTrainingSet = separateClass(trainingSet, classIndex)
+    rawTestSet = separateClass(testSet, classIndex)
+    #get normalized training sets and zip with classification data
+    #zipped with classification data so classification order maintained when sorted
+    normalizedTrainingSet = list(zip(normalize(rawTrainingSet[0]), rawTrainingSet[1]))
+    rawTrainingSet = list(zip(rawTrainingSet[0], rawTrainingSet[1]))
+    #get normalized test sets
+    #leave testing classifiers unzipped since order will remain the same, and simplifies element iteration
+    normalizedTestSet = (normalize(rawTestSet[0]), rawTestSet[1])
+
+    sets = [(('e',  normalizedTestSet, normalizedTrainingSet), "Euclidian Distance"),
+            (('c',  normalizedTestSet, normalizedTrainingSet), "Cosine Similarity"),
+            (('p',  rawTestSet, rawTrainingSet), "Pearson Correlation")]
 
     maxAccuracy = (0, 0, 0)
-    for k in range(1, MAX_K):
+    for k in range(minK, maxK):
         print("k: " + str(k))
         for set in sets:
             accuracy = 0
@@ -50,6 +93,30 @@ def main():
     print("Maximum Accuracy: " + str(maxAccuracy))
     return
 
+
+def numClassification(classifiers):
+    num = 0
+    found = []
+    for classifier in classifiers:
+        if classifier not in found:
+            num += 1
+            found.append(classifier)
+    return num
+
+def convertData(dataSet, valueIndex):
+    numAttributes = len(dataSet[0])
+    for element in dataSet:
+        for i in range(numAttributes):
+            if element[i] in valueIndex[i]:
+                element[i] = valueIndex[i][element[i]]
+    return dataSet
+
+def offsetEpsi(numericalDataSet):
+    for row in numericalDataSet:
+        for element in row:
+            element += EPSI
+    return numericalDataSet
+
 def getAccuracy(computedClassification, knownClassification):
     accurate = 0
     for classifier in zip(computedClassification, knownClassification):
@@ -62,6 +129,7 @@ def classify(k, distanceFunction, testSet, trainingSet):
     classification = []
     for point in testSet[0]:
                 average = 0
+                weight = 0
                 for classifier in knn(distanceFunction, trainingSet, point, k):
                     average += classifier
                 average /= k
@@ -72,7 +140,8 @@ def separateClass(set, classIndex):
     classifier = []
     for item in set:
         classifier.append(item.pop(classIndex))
-    return (set, classifier)
+    #offset non-classifiers by epsi to avoid zero division
+    return (offsetEpsi(set), classifier)
 
 def normalize(set):
     numAttributes = len(set[0])
@@ -80,10 +149,9 @@ def normalize(set):
     setRange = []
     norm = [[] for _ in range(numRows)]
     for i in range(numAttributes):
-        if testNum(set[0][i]):
-            setRange.append((max(set, key = lambda row: row[i])[i], min(set, key = lambda row: row[i])[i]))
-            for j in range(numRows):
-                norm[j].append((set[j][i] - setRange[i][1]) / (setRange[i][0] - setRange[i][1]))
+        setRange.append((max(set, key = lambda row: row[i])[i], min(set, key = lambda row: row[i])[i]))
+        for j in range(numRows):
+            norm[j].append(((set[j][i] - setRange[i][1]) / (setRange[i][0] - setRange[i][1])) + EPSI)
     return norm
 
 
@@ -95,7 +163,7 @@ def loadcsv(fname):
     with open(fname, 'r') as fvar:
         reader = csv.reader(fvar)
         for row in reader:
-            row[:] = [float(item) for item in row if testNum(item)]
+            row[:] = [(float(item)) if testNum(item) else item for item in row]
             rlist.append(row)
     return rlist
 
@@ -152,9 +220,6 @@ def pearson(vector1, vector2):
     xbar /= n
     ybar /= n
     for i in range(0, n):
-        sxy += (vector1[i] - xbar) * (vector2[i] - ybar)
-    sxy /= n - 1
-    for i in range(0, n):
         sx += pow(vector1[i] - xbar, 2)
     sx /= n - 1
     sx = math.sqrt(sx)
@@ -162,6 +227,11 @@ def pearson(vector1, vector2):
         sy += pow(vector2[i] - ybar, 2)
     sy /= n - 1
     sy = math.sqrt(sy)
+    if sx == 0 or sy == 0:
+        return 0
+    for i in range(0, n):
+        sxy += (vector1[i] - xbar) * (vector2[i] - ybar)
+    sxy /= n - 1
     return sxy / (sx * sy)
 
 #get neighbors
