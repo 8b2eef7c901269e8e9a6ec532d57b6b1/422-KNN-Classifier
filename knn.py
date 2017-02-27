@@ -25,6 +25,8 @@ def main():
 
     MIN_K = 15
     MAX_K = 15
+
+    #numerical conversions for non-numerical car data
     CAR_VALUES = [
         {'vhigh' : 4.0,
          'high' : 3.0,
@@ -51,6 +53,7 @@ def main():
     #load BUPA set
     BUPATrainingSet = loadcsv("bupa_data_trainset.csv")
     BUPATestSet = loadcsv("bupa_data_testset.csv")
+    #print set details
     print("BUPA set: ")
     printDetails(BUPATrainingSet, BUPA_CLASS_INDEX)
     print()
@@ -85,21 +88,26 @@ def runClassification(trainingSet, testSet, classIndex, minK, maxK):
     #get normalized test sets
     #leave testing classifiers unzipped since order will remain the same, and simplifies element iteration
     normalizedTestSet = (normalize(rawTestSet[0]), rawTestSet[1])
-
+    #sets to run classification on
     sets = [(('e',  normalizedTestSet, normalizedTrainingSet), "Euclidian Distance"),
             (('c',  normalizedTestSet, normalizedTrainingSet), "Cosine Similarity"),
             (('p',  rawTestSet, rawTrainingSet), "Pearson Correlation")]
 
     maxAccuracy = (0, 0, 0)
+    #classify for specified k range
     for k in range(minK, maxK + 1):
         print("k: " + str(k))
+        #classify each set type
         for set in sets:
             accuracy = 0
             classification = []
             print("Function: " + set[1])
+            #get classifications
             classification = classify(k, *set[0])
+            #calculate accuracy of classification
             accuracy = getAccuracy(classification, set[0][1][1])
             print("Accuracy: " + str(accuracy))
+            #determine which classification technique and k value in range gave best accuracy
             if accuracy > maxAccuracy[0]:
                 maxAccuracy = (accuracy, k, set[1])
         print()
@@ -107,8 +115,11 @@ def runClassification(trainingSet, testSet, classIndex, minK, maxK):
     return
 
 def printDetails(dataSet, classIndex):
+    #get number of each class
     numClass = numClassification(set[classIndex] for set in dataSet)
+    #get number of attributes
     numAttributes = len(dataSet[0])
+    #print details
     print("Data set contains " + str(len(numClass)) + " classifiers:")
     for classifier in numClass:
         print(str(classifier) + ": " + str(numClass[classifier]))
@@ -116,6 +127,7 @@ def printDetails(dataSet, classIndex):
 
 def numClassification(classifiers):
     found = {}
+    #count number of each classifier in given set
     for classifier in classifiers:
         if classifier not in found:
             found[classifier] = 1
@@ -123,40 +135,51 @@ def numClassification(classifiers):
             found[classifier] += 1
     return found
 
+#convert data to numerical data based on provided value conversion dictionary
 def convertData(dataSet, valueIndex):
     set = copy.deepcopy(dataSet)
     numAttributes = len(dataSet[0])
+    #convert data
     for element in set:
         for i in range(numAttributes):
             if element[i] in valueIndex[i]:
                 element[i] = valueIndex[i][element[i]]
     return set
 
+#offset values by global value epsilon
 def offsetEpsi(numericalDataSet):
     for row in numericalDataSet:
         for element in row:
             element += EPSI
     return numericalDataSet
 
+#compute accuracy of a classification
 def getAccuracy(computedClassification, knownClassification):
     accurate = 0
+    #count accurate classifications
     for classifier in zip(computedClassification, knownClassification):
-                #print(classifier[0])
-                if classifier[0] == classifier[1]:
-                    accurate += 1
+        #print(classifier[0])
+        if classifier[0] == classifier[1]:
+            accurate += 1
+    #calculate percent accuaracy
     return accurate / len(knownClassification) * 100
 
+#classify data with k nearest neighbors function
 def classify(k, distanceFunction, testSet, trainingSet):
     classification = []
+    #classify each point in set
     for point in testSet[0]:
         average = 0
         weight = 0
+        #run knn algorithm on point and average found classifiers (assumes ordinality of classifiers if more than 2)
         for classifier in knn(distanceFunction, trainingSet, point, k):
             average += classifier
         average /= k
         classification.append(int(round(average)))
+    #return list of classifications for each point
     return classification
 
+#seperate out classification attribute from data set
 def separateClass(dataSet, classIndex):
     set = copy.deepcopy(dataSet)
     classifier = []
@@ -165,15 +188,18 @@ def separateClass(dataSet, classIndex):
     #offset non-classifiers by epsi to avoid zero division
     return (offsetEpsi(set), classifier)
 
+#normalize a data set by placing values between epsilon and 1 + epsilon
 def normalize(set):
     numAttributes = len(set[0])
     numRows = len(set)
     setRange = []
     norm = [[] for _ in range(numRows)]
+    #find maxes and mins of each attribute
     for i in range(numAttributes):
         setRange.append((max(set, key = lambda row: row[i])[i], min(set, key = lambda row: row[i])[i]))
         for j in range(numRows):
-            #add epsi to avoid 0 division
+            #normalize to set range, with the minimum value at epsilon, and the maximum at 1 + epsilon
+            #range offset by epsilon to avoid 0 division if a 0 vector is created
             norm[j].append(((set[j][i] - setRange[i][1]) / (setRange[i][0] - setRange[i][1])) + EPSI)
     return norm
 
@@ -183,13 +209,16 @@ def loadcsv(fname):
     "loads a csv file"
     rlist = []
     test = 0
+    #open file for reading
     with open(fname, 'r') as fvar:
         reader = csv.reader(fvar)
+        #read each row into array and attempt to convert attributes to numbers if numerical values
         for row in reader:
             row[:] = [(float(item)) if testNum(item) else item for item in row]
             rlist.append(row)
     return rlist
 
+#test if given value is a number
 def testNum(f):
     try:
         float(f)
@@ -257,13 +286,16 @@ def pearson(vector1, vector2):
     sxy /= n - 1
     return sxy / (sx * sy)
 
-#get neighbors
+#get k nearest neighbors
 def knn(distanceFunction, dataSet, dataPoint, k):
     "Get Neighbors"
     dist = []
+    #run using specified distance function
     if distanceFunction == 'e':
+        #evaluate distance to points in training set
         for i in range(0, len(dataSet)):
             dist.append((dataSet[i], edist2(dataPoint, dataSet[i][0])))
+        #sort points and select nearest points based on type of distance function
         dist.sort(key = operator.itemgetter(1))
         return [element[0][1] for element in dist[:k]]
     elif distanceFunction == 'c':
@@ -273,6 +305,7 @@ def knn(distanceFunction, dataSet, dataPoint, k):
         return [element[0][1] for element in dist[-k:]]
     elif distanceFunction == 'p':
         for i in range(0, len(dataSet)):
+            #use absolute value of distance evaluation since 0 is lowest correlation and range is on [-1, 1]
             dist.append((dataSet[i], abs(pearson(dataPoint, dataSet[i][0]))))
         dist.sort(key = operator.itemgetter(1))
         return [element[0][1] for element in dist[-k:]]
