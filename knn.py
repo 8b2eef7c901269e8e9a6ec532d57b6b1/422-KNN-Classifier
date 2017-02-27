@@ -6,9 +6,11 @@
 import csv
 import math
 import operator
+import copy
+import sys
 
 #offset values by a small amount to avoid division by 0
-EPSI = 1/2 * pow(10, -6)
+EPSI = sys.float_info.epsilon
 
 #functions
 
@@ -21,8 +23,8 @@ def main():
     BUPA_CLASS_INDEX = 6
     CAR_CLASS_INDEX = 6
 
-    MIN_K = 30
-    MAX_K = 31
+    MIN_K = 15
+    MAX_K = 15
     CAR_VALUES = [
         {'vhigh' : 4.0,
          'high' : 3.0,
@@ -45,19 +47,30 @@ def main():
          'good' : 3.0,
          'vgood' : 4.0}
         ]
-
-    #load data sets
+    
+    #load BUPA set
     BUPATrainingSet = loadcsv("bupa_data_trainset.csv")
     BUPATestSet = loadcsv("bupa_data_testset.csv")
+    print("BUPA set: ")
+    printDetails(BUPATrainingSet, BUPA_CLASS_INDEX)
+    print()
+    runClassification(BUPATrainingSet, BUPATestSet, BUPA_CLASS_INDEX, MIN_K, MAX_K)
+    print("\nReversing testing and training sets...")
+    runClassification(BUPATestSet, BUPATrainingSet, BUPA_CLASS_INDEX, MIN_K, MAX_K)
+    print()
+
+    #load car set
     carTrainingSet = loadcsv("car_data_trainset.csv")
     carTestSet = loadcsv("car_data_testset.csv")
+    print("Car set: ")
+    printDetails(carTrainingSet, CAR_CLASS_INDEX)
+    print()
     #convert car data to purely numerical values
     carTrainingSet = convertData(carTrainingSet, CAR_VALUES)
     carTestSet = convertData(carTestSet, CAR_VALUES)
-    
-    runClassification(BUPATrainingSet, BUPATestSet, BUPA_CLASS_INDEX, MIN_K, MAX_K)
-    print("\n")
     runClassification(carTrainingSet, carTestSet, CAR_CLASS_INDEX, MIN_K, MAX_K)
+    print("\nReversing testing and training sets...")
+    runClassification(carTestSet, carTrainingSet, CAR_CLASS_INDEX, MIN_K, MAX_K)
 
     
 
@@ -78,7 +91,7 @@ def runClassification(trainingSet, testSet, classIndex, minK, maxK):
             (('p',  rawTestSet, rawTrainingSet), "Pearson Correlation")]
 
     maxAccuracy = (0, 0, 0)
-    for k in range(minK, maxK):
+    for k in range(minK, maxK + 1):
         print("k: " + str(k))
         for set in sets:
             accuracy = 0
@@ -93,23 +106,31 @@ def runClassification(trainingSet, testSet, classIndex, minK, maxK):
     print("Maximum Accuracy: " + str(maxAccuracy))
     return
 
+def printDetails(dataSet, classIndex):
+    numClass = numClassification(set[classIndex] for set in dataSet)
+    numAttributes = len(dataSet[0])
+    print("Data set contains " + str(len(numClass)) + " classifiers:")
+    for classifier in numClass:
+        print(str(classifier) + ": " + str(numClass[classifier]))
+    print("Total attributes: " + str(numAttributes))
 
 def numClassification(classifiers):
-    num = 0
-    found = []
+    found = {}
     for classifier in classifiers:
         if classifier not in found:
-            num += 1
-            found.append(classifier)
-    return num
+            found[classifier] = 1
+        else:
+            found[classifier] += 1
+    return found
 
 def convertData(dataSet, valueIndex):
+    set = copy.deepcopy(dataSet)
     numAttributes = len(dataSet[0])
-    for element in dataSet:
+    for element in set:
         for i in range(numAttributes):
             if element[i] in valueIndex[i]:
                 element[i] = valueIndex[i][element[i]]
-    return dataSet
+    return set
 
 def offsetEpsi(numericalDataSet):
     for row in numericalDataSet:
@@ -128,15 +149,16 @@ def getAccuracy(computedClassification, knownClassification):
 def classify(k, distanceFunction, testSet, trainingSet):
     classification = []
     for point in testSet[0]:
-                average = 0
-                weight = 0
-                for classifier in knn(distanceFunction, trainingSet, point, k):
-                    average += classifier
-                average /= k
-                classification.append(int(round(average)))
+        average = 0
+        weight = 0
+        for classifier in knn(distanceFunction, trainingSet, point, k):
+            average += classifier
+        average /= k
+        classification.append(int(round(average)))
     return classification
 
-def separateClass(set, classIndex):
+def separateClass(dataSet, classIndex):
+    set = copy.deepcopy(dataSet)
     classifier = []
     for item in set:
         classifier.append(item.pop(classIndex))
@@ -151,6 +173,7 @@ def normalize(set):
     for i in range(numAttributes):
         setRange.append((max(set, key = lambda row: row[i])[i], min(set, key = lambda row: row[i])[i]))
         for j in range(numRows):
+            #add epsi to avoid 0 division
             norm[j].append(((set[j][i] - setRange[i][1]) / (setRange[i][0] - setRange[i][1])) + EPSI)
     return norm
 
