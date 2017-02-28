@@ -22,10 +22,6 @@ def main():
 
     BUPA_CLASS_INDEX = 6
     CAR_CLASS_INDEX = 6
-    #assuming the positive classifier in the BUPA set is 2.0 (not exactly sure if that is correct)
-    BUPA_POS_CLASS = [2.0]
-    #assuming the split between negative and positive values is between unacceptable and acceptable
-    CAR_POS_CLASS = [2.0, 3.0, 4.0]
 
     MIN_K = 15
     MAX_K = 15
@@ -61,11 +57,11 @@ def main():
     print("BUPA set: ")
     printDetails(BUPATrainingSet, BUPA_CLASS_INDEX)
     print()
-    runClassification(BUPATrainingSet, BUPATestSet, BUPA_CLASS_INDEX, True, MIN_K, MAX_K, BUPA_POS_CLASS)
+    runClassification(BUPATrainingSet, BUPATestSet, BUPA_CLASS_INDEX, True, MIN_K, MAX_K)
     print("\nReversing testing and training sets...\n")
     printDetails(BUPATestSet, BUPA_CLASS_INDEX)
     print()
-    runClassification(BUPATestSet, BUPATrainingSet, BUPA_CLASS_INDEX, True, MIN_K, MAX_K, BUPA_POS_CLASS)
+    runClassification(BUPATestSet, BUPATrainingSet, BUPA_CLASS_INDEX, True, MIN_K, MAX_K)
     print()
 
     #load car set
@@ -77,17 +73,17 @@ def main():
     #convert car data to purely numerical values
     convertedCarTrainingSet = convertData(carTrainingSet, CAR_VALUES)
     convertedCarTestSet = convertData(carTestSet, CAR_VALUES)
-    runClassification(convertedCarTrainingSet, convertedCarTestSet, CAR_CLASS_INDEX, False, MIN_K, MAX_K, CAR_POS_CLASS)
+    runClassification(convertedCarTrainingSet, convertedCarTestSet, CAR_CLASS_INDEX, False, MIN_K, MAX_K)
     print("\nReversing testing and training sets...\n")
     printDetails(carTestSet, CAR_CLASS_INDEX)
     print()
-    runClassification(convertedCarTestSet, convertedCarTrainingSet, CAR_CLASS_INDEX, False, MIN_K, MAX_K, CAR_POS_CLASS)
+    runClassification(convertedCarTestSet, convertedCarTrainingSet, CAR_CLASS_INDEX, False, MIN_K, MAX_K)
 
     
 #run knn classification for the given training and test sets, with classifications at the given index, for the given k range, and print results
 #whether the classifier is nominal or not is indicated by the flag nominal
 #an optional parameter positive classifiers provides a list of classifiers considered "positive" for evaluating recall and precision, if not provided only accuracy calculated
-def runClassification(trainingSet, testSet, classIndex, nominal, minK, maxK, positiveClassifiers = None):
+def runClassification(trainingSet, testSet, classIndex, nominal, minK, maxK):
     #separate out classification data
     rawTrainingSet = separateClass(trainingSet, classIndex)
     rawTestSet = separateClass(testSet, classIndex)
@@ -115,30 +111,24 @@ def runClassification(trainingSet, testSet, classIndex, nominal, minK, maxK, pos
             print("Function: " + set[1])
             #get classifications
             classification = classify(k, nominal, *set[0])
-            #calculate accuracy of classification
-            if(positiveClassifiers is None):
-                accuracy = getAccuracy(classification, set[0][1][1])
-                print("Accuracy: " + str(accuracy))
-                if accuracy > maxAccuracy[0]:
-                    maxAccuracy = (accuracy, k, set[1])
-            else:
-                print()
-                arp = ARPStats(getARP(classification, set[0][1][1], positiveClassifiers))
-                print("Classifiers:\n")
-                for classifier in arp:
-                    print(str(classifier[0]) + ": ")
-                    print("Accuracy: " + str(classifier[1]))
-                    print("Recall: " + str(classifier[2]))
-                    print("Precision: " + str(classifier[3]) + "\n")
-                print("Confusion Matrix:")
-                printConfusion(*arp[len(arp) - 1][4])
-                print()
-                if arp[len(arp) - 1][1] > maxAccuracy[0]:
-                    maxAccuracy = (arp[len(arp) - 1][1], k, set[1])
-                if arp[len(arp) - 1][2] > maxRecall[0]:
-                    maxRecall = (arp[len(arp) - 1][2], k, set[1])
-                if arp[len(arp) - 1][3] > maxPrecision[0]:
-                    maxPrecision = (arp[len(arp) - 1][3], k, set[1])
+            #calculate accuracy, recall, and precision of classification
+			print()
+			arp = ARPStats(getConfusion(classification, set[0][1][1]))
+			print("Classifiers:\n")
+			for classifier in arp:
+				print(str(classifier[0]) + ": ")
+				print("Accuracy: " + str(classifier[1]))
+				print("Recall: " + str(classifier[2]))
+				print("Precision: " + str(classifier[3]) + "\n")
+			print("Confusion Matrix:")
+			printConfusion(*arp[len(arp) - 1][4])
+			print()
+			if arp[len(arp) - 1][1] > maxAccuracy[0]:
+				maxAccuracy = (arp[len(arp) - 1][1], k, set[1])
+			if arp[len(arp) - 1][2] > maxRecall[0]:
+				maxRecall = (arp[len(arp) - 1][2], k, set[1])
+			if arp[len(arp) - 1][3] > maxPrecision[0]:
+				maxPrecision = (arp[len(arp) - 1][3], k, set[1])
             #determine which classification technique and k value in range gave best accuracy
             
         print()
@@ -196,17 +186,21 @@ def printConfusion(TP, TN, FP, FN):
     print("Actual\tPositive\t" + str(TP) + "\t\t" + str(FN))
     print("\tNegative\t" + str(FP) + "\t\t" + str(TN))
 
-def ARPStats(classifiers):
+def ARPStats(confusion):
     stats = []
-    totalTP = 0
-    totalTN = 0
-    totalFP = 0
-    totalFN = 0
-    for classifier in classifiers:
-        TP = classifiers[classifier][0]
-        TN = classifiers[classifier][1]
-        FP = classifiers[classifier][2]
-        FN = classifiers[classifier][3]
+	totalAccuracy = 0
+	for classifier in confusion:
+		stats[classifier] = (0, 0, 0)
+    
+    for classifier in confusion:
+        totalTP = 0
+		totalTN = 0
+		totalFP = 0
+		totalFN = 0
+		TP += confusion[classifier][classifier]
+		for classifier2 in confusion if classifier2 != classifier:
+			FN += confusion[classifier][classifier2]
+			
         accuracy = (TP + TN) / (TP + TN + FP + FN) * 100
         try:
             recall = TP / (TP + FN) * 100
@@ -229,29 +223,20 @@ def ARPStats(classifiers):
     return stats
 
 #compute accuracy, recall, and precision of a classification
-def getARP(computedClassification, knownClassification, positiveClassifers):
-    classifiers = {}
+def getConfusion(computedClassification, knownClassification):
+    classifiers = []
+	confusion = {{}}
+	for classifier in knownClassification:
+		if classifier not in classifiers:
+			classifier.append(classifier)
+	for classifier1 in classifiers:
+		for classifier2 in classifiers:
+			confusion[classifier1][classifier2] = 0
+			
     #count classifications in each category for each class
-    for classifier in zip(computedClassification, knownClassification):
-        if classifier[1] not in classifiers:
-            classifiers[classifier[1]] = [0, 0, 0, 0]
-        if classifier[0] not in classifiers:
-            classifiers[classifier[0]] = [0, 0, 0, 0]
-        if classifier[0] == classifier[1]:
-            if classifier[0] in positiveClassifers:
-                classifiers[classifier[0]][0] += 1
-                classifiers[classifier[1]][0] += 1
-            else:
-                classifiers[classifier[0]][1] += 1
-                classifiers[classifier[1]][1] += 1
-        else:
-            if classifier[0] in positiveClassifers:
-                classifiers[classifier[0]][2] += 1
-                classifiers[classifier[1]][2] += 1
-            else:
-                classifiers[classifier[0]][3] += 1
-                classifiers[classifier[1]][3] += 1
-    return classifiers
+    for classifier in zip(knownClassification, computedClassification):
+        confusion[classifier[0][1] += 1
+    return confusion
 
 
 #compute accuracy of a classification
