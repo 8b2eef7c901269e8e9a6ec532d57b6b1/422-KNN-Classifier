@@ -123,14 +123,22 @@ def runClassification(trainingSet, testSet, classIndex, nominal, minK, maxK, pos
                     maxAccuracy = (accuracy, k, set[1])
             else:
                 print()
-                arp = ARPStats(*getARP(classification, set[0][1][1], positiveClassifiers))
+                arp = ARPStats(getARP(classification, set[0][1][1], positiveClassifiers))
+                print("Classifiers:\n")
+                for classifier in arp:
+                    print(str(classifier[0]) + ": ")
+                    print("Accuracy: " + str(classifier[1]))
+                    print("Recall: " + str(classifier[2]))
+                    print("Precision: " + str(classifier[3]) + "\n")
+                print("Confusion Matrix:")
+                printConfusion(*arp[len(arp) - 1][4])
                 print()
-                if arp[0] > maxAccuracy[0]:
-                    maxAccuracy = (arp[0], k, set[1])
-                if arp[1] > maxRecall[0]:
-                    maxRecall = (arp[1], k, set[1])
-                if arp[2] > maxPrecision[0]:
-                    maxPrecision = (arp[2], k, set[1])
+                if arp[len(arp) - 1][1] > maxAccuracy[0]:
+                    maxAccuracy = (arp[len(arp) - 1][1], k, set[1])
+                if arp[len(arp) - 1][2] > maxRecall[0]:
+                    maxRecall = (arp[len(arp) - 1][2], k, set[1])
+                if arp[len(arp) - 1][3] > maxPrecision[0]:
+                    maxPrecision = (arp[len(arp) - 1][3], k, set[1])
             #determine which classification technique and k value in range gave best accuracy
             
         print()
@@ -182,41 +190,68 @@ def offsetEpsi(numericalDataSet):
             element += EPSI
     return numericalDataSet
 
-def ARPStats(TP, TN, FP, FN):
-    accuracy = (TP + TN) / (TP + TN + FP + FN) * 100
-    recall = TP / (TP + FN) * 100
-    precision = TP / (TP + FP) * 100
+def printConfusion(TP, TN, FP, FN):
     print("\t\t\t\tPredicted")
     print("\t\t\tPositive\tNegative")
     print("Actual\tPositive\t" + str(TP) + "\t\t" + str(FN))
     print("\tNegative\t" + str(FP) + "\t\t" + str(TN))
-    print()
-    print("Accuracy: " + str(accuracy))
-    print("Recall: " + str(recall))
-    print("Precision: " + str(precision))
-    return (accuracy, recall, precision)
+
+def ARPStats(classifiers):
+    stats = []
+    totalTP = 0
+    totalTN = 0
+    totalFP = 0
+    totalFN = 0
+    for classifier in classifiers:
+        TP = classifiers[classifier][0]
+        TN = classifiers[classifier][1]
+        FP = classifiers[classifier][2]
+        FN = classifiers[classifier][3]
+        accuracy = (TP + TN) / (TP + TN + FP + FN) * 100
+        try:
+            recall = TP / (TP + FN) * 100
+        except ZeroDivisionError:
+            recall = 'N/A'
+        try:
+            precision = TP / (TP + FP) * 100
+        except ZeroDivisionError:
+            recall = 'N/A'
+        #divide by 2 for each since all added twice
+        totalTP += TP / 2
+        totalTN += TN / 2
+        totalFP += FP / 2
+        totalFN += FN / 2
+        stats.append((classifier, accuracy, recall, precision))
+    totalAccuracy = (totalTP + totalTN) / (totalTP + totalTN + totalFP + totalFN) * 100
+    totalRecall = totalTP / (totalTP + totalFN) * 100
+    totalPrecision = totalTP / (totalTP + totalFP) * 100
+    stats.append(('Total', totalAccuracy, totalRecall, totalPrecision, (totalTP, totalTN, totalFP, totalFN)))
+    return stats
 
 #compute accuracy, recall, and precision of a classification
 def getARP(computedClassification, knownClassification, positiveClassifers):
-    TP = 0
-    TN = 0
-    FP = 0
-    FN = 0
-    #count accurate classifications
+    classifiers = {}
+    #count classifications in each category for each class
     for classifier in zip(computedClassification, knownClassification):
-        #print(classifier[0])
+        if classifier[1] not in classifiers:
+            classifiers[classifier[1]] = [0, 0, 0, 0]
+        if classifier[0] not in classifiers:
+            classifiers[classifier[0]] = [0, 0, 0, 0]
         if classifier[0] == classifier[1]:
             if classifier[0] in positiveClassifers:
-                TP += 1
+                classifiers[classifier[0]][0] += 1
+                classifiers[classifier[1]][0] += 1
             else:
-                TN += 1
+                classifiers[classifier[0]][1] += 1
+                classifiers[classifier[1]][1] += 1
         else:
             if classifier[0] in positiveClassifers:
-                FP += 1
+                classifiers[classifier[0]][2] += 1
+                classifiers[classifier[1]][2] += 1
             else:
-                FN += 1
-    #calculate percent accuaracy
-    return (TP, TN, FP, FN)
+                classifiers[classifier[0]][3] += 1
+                classifiers[classifier[1]][3] += 1
+    return classifiers
 
 
 #compute accuracy of a classification
