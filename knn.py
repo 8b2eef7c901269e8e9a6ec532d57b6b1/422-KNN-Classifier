@@ -22,6 +22,10 @@ def main():
 
     BUPA_CLASS_INDEX = 6
     CAR_CLASS_INDEX = 6
+    #assuming the positive classifier in the BUPA set is 2.0 (not exactly sure if that is correct)
+    BUPA_POS_CLASS = [2.0]
+    #assuming the split between negative and positive values is between unacceptable and acceptable
+    CAR_POS_CLASS = [2.0, 3.0, 4.0]
 
     MIN_K = 15
     MAX_K = 15
@@ -57,9 +61,11 @@ def main():
     print("BUPA set: ")
     printDetails(BUPATrainingSet, BUPA_CLASS_INDEX)
     print()
-    runClassification(BUPATrainingSet, BUPATestSet, BUPA_CLASS_INDEX, MIN_K, MAX_K)
-    print("\nReversing testing and training sets...")
-    runClassification(BUPATestSet, BUPATrainingSet, BUPA_CLASS_INDEX, MIN_K, MAX_K)
+    runClassification(BUPATrainingSet, BUPATestSet, BUPA_CLASS_INDEX, True, MIN_K, MAX_K, BUPA_POS_CLASS)
+    print("\nReversing testing and training sets...\n")
+    printDetails(BUPATestSet, BUPA_CLASS_INDEX)
+    print()
+    runClassification(BUPATestSet, BUPATrainingSet, BUPA_CLASS_INDEX, True, MIN_K, MAX_K, BUPA_POS_CLASS)
     print()
 
     #load car set
@@ -69,15 +75,19 @@ def main():
     printDetails(carTrainingSet, CAR_CLASS_INDEX)
     print()
     #convert car data to purely numerical values
-    carTrainingSet = convertData(carTrainingSet, CAR_VALUES)
-    carTestSet = convertData(carTestSet, CAR_VALUES)
-    runClassification(carTrainingSet, carTestSet, CAR_CLASS_INDEX, MIN_K, MAX_K)
-    print("\nReversing testing and training sets...")
-    runClassification(carTestSet, carTrainingSet, CAR_CLASS_INDEX, MIN_K, MAX_K)
+    convertedCarTrainingSet = convertData(carTrainingSet, CAR_VALUES)
+    convertedCarTestSet = convertData(carTestSet, CAR_VALUES)
+    runClassification(convertedCarTrainingSet, convertedCarTestSet, CAR_CLASS_INDEX, False, MIN_K, MAX_K, CAR_POS_CLASS)
+    print("\nReversing testing and training sets...\n")
+    printDetails(carTestSet, CAR_CLASS_INDEX)
+    print()
+    runClassification(convertedCarTestSet, convertedCarTrainingSet, CAR_CLASS_INDEX, False, MIN_K, MAX_K, CAR_POS_CLASS)
 
     
-
-def runClassification(trainingSet, testSet, classIndex, minK, maxK):
+#run knn classification for the given training and test sets, with classifications at the given index, for the given k range, and print results
+#whether the classifier is nominal or not is indicated by the flag nominal
+#an optional parameter positive classifiers provides a list of classifiers considered "positive" for evaluating recall and precision, if not provided only accuracy calculated
+def runClassification(trainingSet, testSet, classIndex, nominal, minK, maxK, positiveClassifiers = None):
     #separate out classification data
     rawTrainingSet = separateClass(trainingSet, classIndex)
     rawTestSet = separateClass(testSet, classIndex)
@@ -94,24 +104,42 @@ def runClassification(trainingSet, testSet, classIndex, minK, maxK):
             (('p',  rawTestSet, rawTrainingSet), "Pearson Correlation")]
 
     maxAccuracy = (0, 0, 0)
+    maxRecall = (0, 0, 0)
+    maxPrecision = (0, 0, 0)
     #classify for specified k range
     for k in range(minK, maxK + 1):
         print("k: " + str(k))
         #classify each set type
         for set in sets:
-            accuracy = 0
             classification = []
             print("Function: " + set[1])
             #get classifications
-            classification = classify(k, *set[0])
+            classification = classify(k, nominal, *set[0])
             #calculate accuracy of classification
-            accuracy = getAccuracy(classification, set[0][1][1])
-            print("Accuracy: " + str(accuracy))
+            if(positiveClassifiers is None):
+                accuracy = getAccuracy(classification, set[0][1][1])
+                print("Accuracy: " + str(accuracy))
+                if accuracy > maxAccuracy[0]:
+                    maxAccuracy = (accuracy, k, set[1])
+            else:
+                print()
+                arp = ARPStats(*getARP(classification, set[0][1][1], positiveClassifiers))
+                print()
+                if arp[0] > maxAccuracy[0]:
+                    maxAccuracy = (arp[0], k, set[1])
+                if arp[1] > maxRecall[0]:
+                    maxRecall = (arp[1], k, set[1])
+                if arp[2] > maxPrecision[0]:
+                    maxPrecision = (arp[2], k, set[1])
             #determine which classification technique and k value in range gave best accuracy
-            if accuracy > maxAccuracy[0]:
-                maxAccuracy = (accuracy, k, set[1])
+            
         print()
-    print("Maximum Accuracy: " + str(maxAccuracy))
+    if(positiveClassifiers is None):
+        print("Maximum Accuracy: " + str(maxAccuracy))
+    else:
+        print("Maximum Accuracy: " + str(maxAccuracy))
+        print("Maximum Recall: " + str(maxRecall))
+        print("Maximum Precision: " + str(maxPrecision))
     return
 
 def printDetails(dataSet, classIndex):
@@ -136,6 +164,7 @@ def numClassification(classifiers):
     return found
 
 #convert data to numerical data based on provided value conversion dictionary
+#for classification to work properly classifiers must be
 def convertData(dataSet, valueIndex):
     set = copy.deepcopy(dataSet)
     numAttributes = len(dataSet[0])
@@ -153,6 +182,43 @@ def offsetEpsi(numericalDataSet):
             element += EPSI
     return numericalDataSet
 
+def ARPStats(TP, TN, FP, FN):
+    accuracy = (TP + TN) / (TP + TN + FP + FN) * 100
+    recall = TP / (TP + FN) * 100
+    precision = TP / (TP + FP) * 100
+    print("\t\t\t\tPredicted")
+    print("\t\t\tPositive\tNegative")
+    print("Actual\tPositive\t" + str(TP) + "\t\t" + str(FN))
+    print("\tNegative\t" + str(FP) + "\t\t" + str(TN))
+    print()
+    print("Accuracy: " + str(accuracy))
+    print("Recall: " + str(recall))
+    print("Precision: " + str(precision))
+    return (accuracy, recall, precision)
+
+#compute accuracy, recall, and precision of a classification
+def getARP(computedClassification, knownClassification, positiveClassifers):
+    TP = 0
+    TN = 0
+    FP = 0
+    FN = 0
+    #count accurate classifications
+    for classifier in zip(computedClassification, knownClassification):
+        #print(classifier[0])
+        if classifier[0] == classifier[1]:
+            if classifier[0] in positiveClassifers:
+                TP += 1
+            else:
+                TN += 1
+        else:
+            if classifier[0] in positiveClassifers:
+                FP += 1
+            else:
+                FN += 1
+    #calculate percent accuaracy
+    return (TP, TN, FP, FN)
+
+
 #compute accuracy of a classification
 def getAccuracy(computedClassification, knownClassification):
     accurate = 0
@@ -162,20 +228,53 @@ def getAccuracy(computedClassification, knownClassification):
         if classifier[0] == classifier[1]:
             accurate += 1
     #calculate percent accuaracy
-    return accurate / len(knownClassification) * 100
+    return float(accurate) / len(knownClassification) * 100
 
 #classify data with k nearest neighbors function
-def classify(k, distanceFunction, testSet, trainingSet):
+def classify(k, nominal, distanceFunction, testSet, trainingSet):
     classification = []
-    #classify each point in set
-    for point in testSet[0]:
-        average = 0
-        weight = 0
-        #run knn algorithm on point and average found classifiers (assumes ordinality of classifiers if more than 2)
-        for classifier in knn(distanceFunction, trainingSet, point, k):
-            average += classifier
-        average /= k
-        classification.append(int(round(average)))
+
+    #classify on greatest number of similar classifiers if classifier nominal
+    if nominal:
+        classifiers = {}
+        #enumerate possible classifiers
+        for point in trainingSet:
+            if point[1] not in classifiers:
+                classifiers[point[1]] = 0
+        #classify each point in set
+        for point in testSet[0]:
+            average = 0
+            for classifier in knn(distanceFunction, trainingSet, point, k):
+                classifiers[classifier] += 1
+            classification.append(max(classifiers, key = lambda value: classifiers[value]))
+            #reset counts
+            for classifier in classifiers:
+                classifiers[classifier] = 0
+
+    #classifiy on average of classifiers if classifier ordinal
+    else:
+        classifiers = []
+        #enumerate possible classifiers
+        for point in trainingSet:
+            if point[1] not in classifiers:
+                classifiers.append(point[1])
+        for point in testSet[0]:
+            average = 0
+            #enumerate possible classifiers
+            for classifier in knn(distanceFunction, trainingSet, point, k):
+                average += classifier
+            #ensure average properly computed by casting
+            average = float(average) / k
+            #find the classifier that is closest to the average
+            closestClassifier = 0
+            minDifference = math.inf
+            classification.append(min(classifiers, key = lambda val: abs(average - val)))
+            #for classifier in classifiers:
+            #    if abs(average - classifier) < minDifference:
+            #        closestClassifier = classifier
+            #        minDifference = abs(average - classifier)
+            #classification.append(closestClassifier)
+
     #return list of classifications for each point
     return classification
 
