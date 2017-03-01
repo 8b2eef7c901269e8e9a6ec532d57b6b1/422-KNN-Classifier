@@ -112,32 +112,25 @@ def runClassification(trainingSet, testSet, classIndex, nominal, minK, maxK):
             #get classifications
             classification = classify(k, nominal, *set[0])
             #calculate accuracy, recall, and precision of classification
-			print()
-			arp = ARPStats(getConfusion(classification, set[0][1][1]))
-			print("Classifiers:\n")
-			for classifier in arp:
-				print(str(classifier[0]) + ": ")
-				print("Accuracy: " + str(classifier[1]))
-				print("Recall: " + str(classifier[2]))
-				print("Precision: " + str(classifier[3]) + "\n")
-			print("Confusion Matrix:")
-			printConfusion(*arp[len(arp) - 1][4])
-			print()
-			if arp[len(arp) - 1][1] > maxAccuracy[0]:
-				maxAccuracy = (arp[len(arp) - 1][1], k, set[1])
-			if arp[len(arp) - 1][2] > maxRecall[0]:
-				maxRecall = (arp[len(arp) - 1][2], k, set[1])
-			if arp[len(arp) - 1][3] > maxPrecision[0]:
-				maxPrecision = (arp[len(arp) - 1][3], k, set[1])
+            print()
+            confusion = getConfusion(classification, set[0][1][1])
+            arp = ARPStats(confusion)
+            print("Classifiers:\n")
+            for classifier in arp[0]:
+                print(str(classifier) + ": ")
+                print("Accuracy: " + str(arp[0][classifier][0]))
+                print("Recall: " + str(arp[0][classifier][1]))
+                print("Precision: " + str(arp[0][classifier][2]) + "\n")
+            print("Total:")
+            print("Accuracy: " + str(arp[1]))
+            print("Confusion Matrix:")
+            printConfusion(confusion)
+            print()
+            if arp[1] > maxAccuracy[0]:
+                maxAccuracy = (arp[1], k, set[1])
             #determine which classification technique and k value in range gave best accuracy
-            
         print()
-    if(positiveClassifiers is None):
-        print("Maximum Accuracy: " + str(maxAccuracy))
-    else:
-        print("Maximum Accuracy: " + str(maxAccuracy))
-        print("Maximum Recall: " + str(maxRecall))
-        print("Maximum Precision: " + str(maxPrecision))
+    print("Maximum Accuracy: " + str(maxAccuracy))
     return
 
 def printDetails(dataSet, classIndex):
@@ -180,28 +173,43 @@ def offsetEpsi(numericalDataSet):
             element += EPSI
     return numericalDataSet
 
-def printConfusion(TP, TN, FP, FN):
+def printConfusion(confusion):
     print("\t\t\t\tPredicted")
-    print("\t\t\tPositive\tNegative")
-    print("Actual\tPositive\t" + str(TP) + "\t\t" + str(FN))
-    print("\tNegative\t" + str(FP) + "\t\t" + str(TN))
+    print('\t', end = '')
+    for classifier in confusion:
+        print(str(classifier) + '\t', end = '')
+    print()
+    for classifier1 in confusion:
+        print(str(classifier1), end = '\t')
+        for classifier2 in confusion[classifier1]:
+            print(str(confusion[classifier1][classifier2]) + '\t', end = '')
+        print()
 
 def ARPStats(confusion):
-    stats = []
-	totalAccuracy = 0
-	for classifier in confusion:
-		stats[classifier] = (0, 0, 0)
+    stats = {}
+    totalT = 0
+    totalF = 0
+    totalAccuracy = 0
     
     for classifier in confusion:
-        totalTP = 0
-		totalTN = 0
-		totalFP = 0
-		totalFN = 0
-		TP += confusion[classifier][classifier]
-		for classifier2 in confusion if classifier2 != classifier:
-			FN += confusion[classifier][classifier2]
-			
-        accuracy = (TP + TN) / (TP + TN + FP + FN) * 100
+        TP = 0
+        TN = 0
+        FP = 0
+        FN = 0
+        TP += confusion[classifier][classifier]
+        totalT += confusion[classifier][classifier]
+        for classifier2 in confusion:
+            if classifier2 != classifier:
+                totalF += confusion[classifier][classifier2]
+                FN += confusion[classifier][classifier2]
+                FP += confusion[classifier2][classifier]
+                for offClass in confusion:
+                    if offClass != classifier:
+                        TN += confusion[classifier2][offClass]
+        try:	
+            accuracy = (TP + TN) / (TP + TN + FP + FN) * 100
+        except ZeroDivisionError:
+            accuracy = 'N/A'
         try:
             recall = TP / (TP + FN) * 100
         except ZeroDivisionError:
@@ -209,33 +217,25 @@ def ARPStats(confusion):
         try:
             precision = TP / (TP + FP) * 100
         except ZeroDivisionError:
-            recall = 'N/A'
-        #divide by 2 for each since all added twice
-        totalTP += TP / 2
-        totalTN += TN / 2
-        totalFP += FP / 2
-        totalFN += FN / 2
-        stats.append((classifier, accuracy, recall, precision))
-    totalAccuracy = (totalTP + totalTN) / (totalTP + totalTN + totalFP + totalFN) * 100
-    totalRecall = totalTP / (totalTP + totalFN) * 100
-    totalPrecision = totalTP / (totalTP + totalFP) * 100
-    stats.append(('Total', totalAccuracy, totalRecall, totalPrecision, (totalTP, totalTN, totalFP, totalFN)))
-    return stats
+            precision = 'N/A'
+        stats[classifier] = (accuracy, recall, precision)
+    totalAccuracy = totalT / (totalT + totalF) * 100
+    return (stats, totalAccuracy)
 
 #compute accuracy, recall, and precision of a classification
 def getConfusion(computedClassification, knownClassification):
     classifiers = []
-	confusion = {{}}
-	for classifier in knownClassification:
-		if classifier not in classifiers:
-			classifier.append(classifier)
-	for classifier1 in classifiers:
-		for classifier2 in classifiers:
-			confusion[classifier1][classifier2] = 0
-			
+    confusion = {}
+    for classifier in knownClassification:
+        if classifier not in classifiers:
+            classifiers.append(classifier)
+    for classifier1 in classifiers:
+        confusion[classifier1] = {}
+        for classifier2 in classifiers:
+            confusion[classifier1][classifier2] = 0		
     #count classifications in each category for each class
     for classifier in zip(knownClassification, computedClassification):
-        confusion[classifier[0][1] += 1
+        confusion[classifier[0]][classifier[1]] += 1
     return confusion
 
 
