@@ -114,6 +114,9 @@ def runClassification(trainingSet, testSet, classIndex, nominal, minK, maxK):
             #calculate accuracy, recall, and precision of classification
             print()
             confusion = getConfusion(classification, set[0][1][1])
+            print("Confusion Matrix:")
+            printConfusion(confusion)
+            print()
             arp = ARPStats(confusion)
             print("Classifiers:\n")
             for classifier in arp[0]:
@@ -123,8 +126,6 @@ def runClassification(trainingSet, testSet, classIndex, nominal, minK, maxK):
                 print("Precision: " + str(arp[0][classifier][2]) + "\n")
             print("Total:")
             print("Accuracy: " + str(arp[1]))
-            print("Confusion Matrix:")
-            printConfusion(confusion)
             print()
             if arp[1] > maxAccuracy[0]:
                 maxAccuracy = (arp[1], k, set[1])
@@ -174,13 +175,17 @@ def offsetEpsi(numericalDataSet):
     return numericalDataSet
 
 def printConfusion(confusion):
-    print("\t\t\t\tPredicted")
-    print('\t', end = '')
+    first = True
+    print("\t\tPredicted")
+    print('\t\t', end = '')
     for classifier in confusion:
         print(str(classifier) + '\t', end = '')
     print()
     for classifier1 in confusion:
-        print(str(classifier1), end = '\t')
+        if first:
+            print("Actual", end = '')
+            first = False
+        print('\t' + str(classifier1), end = '\t')
         for classifier2 in confusion[classifier1]:
             print(str(confusion[classifier1][classifier2]) + '\t', end = '')
         print()
